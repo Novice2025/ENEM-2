@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ENEM Professores Game</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&display=swap" rel="stylesheet">
+    <!-- jsPDF and html2canvas for PDF generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-image: url('https://placehold.co/1920x1080/0a0a0a/444444?text=Tech+Background');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            transition: background-color 0.5s ease-in-out;
+        }
+
+        .container-card {
+            background-color: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            border-radius: 1.5rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            max-width: 3xl;
+            width: 100%;
+            transition: all 0.5s ease-in-out;
+        }
+
+        .btn-option {
+            transition: all 0.3s ease-in-out;
+        }
+
+        .btn-option:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+
+        .progress-bar {
+            height: 10px;
+            background-color: #e5e7eb;
+            border-radius: 9999px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            transition: width 0.5s ease-in-out, background-color 0.5s ease-in-out;
+            background-color: #4f46e5;
+            border-radius: 9999px;
+        }
+
+        .topic-bg-geral { background-color: #dbeafe; color: #1e40af; }
+        .topic-bg-edfisica { background-color: #d1fae5; color: #065f46; }
+        .topic-bg-ia { background-color: #fef3c7; color: #b45309; }
+        .topic-text-geral { color: #1e40af; }
+        .topic-text-edfisica { color: #065f46; }
+        .topic-text-ia { color: #b45309; }
+        
+        /* Loading spinner style */
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 2s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+    <div id="game-container" class="container-card p-8 md:p-12">
+        <div id="intro-screen" class="text-center">
+             <h1 class="text-4xl md:text-5xl font-extrabold text-gray-900 mb-4">
+                🐼 Bem-vindo Bubusita!
+            </h1>
+            <p class="text-lg md:text-xl text-gray-600 mb-6">
+                Você está sendo avaliado pelo mestre Dudu. Preciso acertar 150 perguntas para conseguir passar na prova
+            </p>
+            <button id="startButton" class="bg-indigo-600 text-white font-bold py-3 px-6 rounded-full shadow-lg hover:bg-indigo-700 transition duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+                Começar
+            </button>
+        </div>
+
+        <div id="game-screen" class="hidden">
+            <div class="flex justify-between items-center mb-4">
+                <button id="backButton" class="bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-full hover:bg-gray-300 transition duration-300">
+                    Voltar
+                </button>
+                <button id="pdfButton" class="bg-blue-500 text-white font-bold py-2 px-4 rounded-full hover:bg-blue-600 transition duration-300">
+                    Baixar como PDF
+                </button>
+            </div>
+            <div id="game-header" class="mb-6 md:mb-8">
+                <div class="flex justify-between items-center mb-4">
+                    <span id="score" class="text-lg md:text-xl font-bold text-gray-800">Score: 0</span>
+                    <span id="question-count" class="text-lg md:text-xl font-bold text-gray-800">Questão 1 / 180</span>
+                </div>
+                <div class="progress-bar">
+                    <div id="progress-bar-fill" class="progress-fill"></div>
+                </div>
+                <div id="topic-tag" class="text-sm font-semibold rounded-full px-3 py-1 mt-4 text-center"></div>
+            </div>
+
+            <div id="question-area">
+                <!-- Question and options will be injected here by JavaScript -->
+            </div>
+
+            <div id="feedback-area" class="mt-8 hidden">
+                <h2 id="feedback-title" class="text-3xl font-extrabold mb-2 text-center"></h2>
+                <p id="feedback-explanation" class="text-lg text-gray-700 text-center"></p>
+                <div class="text-center">
+                    <button id="nextQuestionButton" class="mt-6 bg-indigo-600 text-white font-bold py-3 px-6 rounded-full shadow-lg hover:bg-indigo-700 transition duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+                        Próxima Questão
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="end-screen" class="hidden text-center">
+            <h1 class="text-4xl md:text-5xl font-extrabold text-gray-900 mb-4">Parabéns!</h1>
+            <p id="final-score" class="text-2xl font-bold text-gray-700 mb-4"></p>
+            <p id="final-message" class="text-xl text-gray-600 mb-6"></p>
+            <button id="restartButton" class="bg-indigo-600 text-white font-bold py-3 px-6 rounded-full shadow-lg hover:bg-indigo-700 transition duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+                Recomeçar
+            </button>
+        </div>
+        
+        <div id="loading-pdf" class="hidden text-center">
+            <div class="loader mx-auto"></div>
+            <p class="text-lg font-semibold mt-4">Gerando PDF, por favor aguarde...</p>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const startButton = document.getElementById('startButton');
+            const introScreen = document.getElementById('intro-screen');
+            const gameScreen = document.getElementById('game-screen');
+            const endScreen = document.getElementById('end-screen');
+            const scoreDisplay = document.getElementById('score');
+            const questionCountDisplay = document.getElementById('question-count');
+            const progressBarFill = document.getElementById('progress-bar-fill');
+            const topicTag = document.getElementById('topic-tag');
+            const questionArea = document.getElementById('question-area');
+            const feedbackArea = document.getElementById('feedback-area');
+            const feedbackTitle = document.getElementById('feedback-title');
+            const feedbackExplanation = document.getElementById('feedback-explanation');
+            const nextQuestionButton = document.getElementById('nextQuestionButton');
+            const finalScoreDisplay = document.getElementById('final-score');
+            const finalMessageDisplay = document.getElementById('final-message');
+            const restartButton = document.getElementById('restartButton');
+            const gameContainer = document.getElementById('game-container');
+            const backButton = document.getElementById('backButton');
+            const pdfButton = document.getElementById('pdfButton');
+            const loadingPdf = document.getElementById('loading-pdf');
+
+
+            let currentQuestionIndex = 0;
+            let score = 0;
+            const passingScore = 150;
+
+            const questions = [
+                // Existing IA Questions (21 questions)
+                { q: "A realidade aumentada (RA) em sala de aula permite:", a: "B", options: ["A) Substituir livros totalmente", "B) Integrar informações digitais ao mundo real para aprendizado interativo", "C) Criar jogos sem objetivo pedagógico", "D) Tornar ensino passivo"], explanation: "RA enriquece a percepção e compreensão de conceitos.", topic: "IA / Futuro da Educação" },
+                { q: "A aprendizagem híbrida do futuro combinará:", a: "B", options: ["A) Apenas ensino presencial", "B) Presencial + digital + IA para personalização", "C) Apenas aplicativos", "D) Ensino sem interação humana"], explanation: "Modelos híbridos aumentam flexibilidade e engajamento.", topic: "IA / Futuro da Educação" },
+                { q: "Big Data na educação serve para:", a: "B", options: ["A) Substituir provas", "B) Coletar, analisar e prever desempenho e necessidades de alunos", "C) Apenas contabilizar presença", "D) Avaliar professores sem critério"], explanation: "Big Data auxilia decisões pedagógicas baseadas em evidências.", topic: "IA / Futuro da Educação" },
+                { q: "A Inteligência Artificial pode ajudar a:", a: "B", options: ["A) Garantir aprendizado homogêneo para todos", "B) Identificar lacunas individuais e sugerir conteúdos específicos", "C) Substituir interação social", "D) Tornar avaliações automáticas apenas"], explanation: "IA personaliza caminhos de aprendizagem.", topic: "IA / Futuro da Educação" },
+                { q: "A gamificação com IA pode:", a: "B", options: ["A) Tornar atividades monótonas", "B) Transformar aprendizado em experiências motivadoras e competitivas de forma saudável", "C) Substituir o ensino presencial", "D) Focar apenas em notas"], explanation: "Combina jogos e dados adaptativos para engajamento.", topic: "IA / Futuro da Educação" },
+                { q: "O ensino baseado em dados significa:", a: "B", options: ["A) Tomar decisões pedagógicas sem análise", "B) Utilizar dados de aprendizagem para planejar atividades e intervenções", "C) Avaliar apenas frequência", "D) Substituir professores por softwares"], explanation: "Dados ajudam professores a tomar decisões mais precisas.", topic: "IA / Futuro da Educação" },
+                { q: "Robôs educacionais podem:", a: "B", options: ["A) Substituir interação social", "B) Apoiar aprendizagem prática, tutoria e exercícios repetitivos", "C) Corrigir apenas provas", "D) Criar regras escolares"], explanation: "Robôs auxiliam, mas não substituem professores.", topic: "IA / Futuro da Educação" },
+                { q: "A IA pode ajudar na detecção precoce de dificuldades de aprendizagem ao:", a: "B", options: ["A) Apenas aplicar provas", "B) Analisar padrões de respostas e comportamento dos alunos", "C) Ignorar diferenças individuais", "D) Forçar ensino uniforme"], explanation: "Sistemas identificam lacunas e sugerem intervenções.", topic: "IA / Futuro da Educação" },
+                { q: "O ensino do futuro incluirá:", a: "B", options: ["A) Apenas conteúdos tradicionais", "B) Competências digitais, pensamento crítico e adaptabilidade", "C) Apenas memorização", "D) Apenas testes padronizados"], explanation: "Futuro da educação exige habilidades para lidar com tecnologia e mudança.", topic: "IA / Futuro da Educação" },
+                { q: "A ética digital na educação envolve:", a: "B", options: ["A) Compartilhamento irrestrito de dados", "B) Privacidade, segurança, respeito e uso responsável de tecnologias", "C) Apenas ensino de programação", "D) Proibir IA nas escolas"], explanation: "Ética digital garante segurança e confiança na educação.", topic: "IA / Futuro da Educação" },
+                { q: "A personalização do aprendizado com IA visa:", a: "B", options: ["A) Ignorar desempenho do aluno", "B) Oferecer conteúdo e atividades de acordo com ritmo e necessidade individuais", "C) Uniformizar o ensino", "D) Reduzir interação humana"], explanation: "IA permite adaptar conteúdo para cada aluno.", topic: "IA / Futuro da Educação" },
+                { q: "A realidade virtual (RV) na educação possibilita:", a: "B", options: ["A) Substituir professores", "B) Simulações imersivas de ambientes e situações de aprendizado", "C) Ensino passivo apenas", "D) Avaliação automática sem contexto"], explanation: "RV oferece experiências práticas e seguras.", topic: "IA / Futuro da Educação" },
+                { q: "O termo Educação 4.0 refere-se a:", a: "B", options: ["A) Ensino tradicional apenas", "B) Educação conectada, personalizada e tecnológica", "C) Apenas aulas presenciais", "D) Ensino sem avaliação"], explanation: "Integra tecnologia, IA e metodologias ativas.", topic: "IA / Futuro da Educação" },
+                { q: "A IA pode apoiar a formação continuada de professores ao:", a: "A", options: ["A) Criar conteúdo automatizado e personalizado", "B) Substituir o professor na sala de aula", "C) Avaliar apenas provas de alunos", "D) Reduzir capacitação docente"], explanation: "Ferramentas de IA auxiliam professores em atualização e prática pedagógica.", topic: "IA / Futuro da Educação" },
+                { q: "A aprendizagem híbrida inteligente deve combinar:", a: "A", options: ["A) Ensino presencial e digital + análise de dados e IA", "B) Apenas ensino online", "C) Apenas atividades lúdicas", "D) Avaliações tradicionais sem tecnologia"], explanation: "Integra múltiplas modalidades e tecnologia adaptativa.", topic: "IA / Futuro da Educação" },
+                { q: "O ensino do futuro deve desenvolver:", a: "B", options: ["A) Apenas conteúdo factual", "B) Pensamento crítico, criatividade, autonomia e competências digitais", "C) Apenas memorização de regras", "D) Apenas esportes e habilidades físicas"], explanation: "Habilidades socioemocionais e digitais são essenciais no século XXI.", topic: "IA / Futuro da Educação" },
+                { q: "O termo educação personalizada significa:", a: "B", options: ["A) Mesma metodologia para todos", "B) Ensino moldado às necessidades, ritmo e interesses de cada aluno", "C) Apenas aulas online", "D) Exclusão de práticas presenciais"], explanation: "Personalização otimiza aprendizagem e engajamento.", topic: "IA / Futuro da Educação" },
+                { q: "IA pode ajudar no monitoramento da aprendizagem ao:", a: "B", options: ["A) Substituir professores completamente", "B) Coletar dados, identificar lacunas e sugerir intervenções pedagógicas", "C) Avaliar apenas frequência", "D) Reduzir currículo"], explanation: "Dados permitem decisões pedagógicas mais precisas.", topic: "IA / Futuro da Educação" },
+                { q: "A gamificação educacional melhora:", a: "B", options: ["A) Apenas notas", "B) Motivação, engajamento e retenção de conhecimento", "C) Ensino tradicional", "D) Apenas desempenho atlético"], explanation: "Jogos aplicados com propósito pedagógico aumentam aprendizado.", topic: "IA / Futuro da Educação" },
+                { q: "A IA no contexto brasileiro da educação enfrenta:", a: "B", options: ["A) Recursos abundantes e universalidade", "B) Desigualdade digital, falta de infraestrutura e formação docente", "C) Exclusivamente aceitação social", "D) Limitação legal apenas"], explanation: "Desafios estruturais limitam uso efetivo da IA no Brasil.", topic: "IA / Futuro da Educação" },
+                { q: "No futuro da educação, o professor será:", a: "B", options: ["A) Substituído por robôs", "B) Mediador, orientador e integrador de tecnologias e conteúdos", "C) Apenas avaliador de provas", "D) Responsável só por disciplina e punição"], explanation: "Professores continuarão centrais, usando tecnologia para potencializar aprendizagem.", topic: "IA / Futuro da Educação" },
+                
+                // Existing Mixed Questions (30 questions)
+                { q: "A educação inclusiva garante:", a: "B", options: ["A) Separação de alunos com deficiência", "B) Acesso, participação e aprendizagem de todos, respeitando diferenças", "C) Ensino apenas para alunos com alto rendimento", "D) Aulas teóricas sem adaptação"], explanation: "Inclusão é direito e promove equidade na aprendizagem.", topic: "Parte Geral" },
+                { q: "O uso de tecnologia na sala de aula deve:", a: "B", options: ["A) Substituir totalmente o professor", "B) Potencializar ensino e aprendizagem, integrando recursos digitais", "C) Ser apenas para jogos", "D) Aumentar provas online"], explanation: "Tecnologia é ferramenta de apoio pedagógico.", topic: "IA / Futuro da Educação" },
+                { q: "A aprendizagem baseada em projetos (PBL) desenvolve:", a: "B", options: ["A) Memorização de conteúdos", "B) Pensamento crítico, criatividade e resolução de problemas", "C) Competição sem colaboração", "D) Apenas habilidades físicas"], explanation: "PBL conecta teoria e prática, incentivando autonomia.", topic: "Parte Geral" },
+                { q: "O desenvolvimento socioemocional é importante porque:", a: "B", options: ["A) Substitui conteúdos acadêmicos", "B) Ajuda alunos a lidar com emoções, conflitos e relacionamentos", "C) Apenas melhora desempenho em esportes", "D) Não tem relação com aprendizagem"], explanation: "Inteligência emocional influencia comportamento, aprendizagem e socialização.", topic: "Parte Geral" },
+                { q: "O ensino híbrido integra:", a: "B", options: ["A) Apenas aulas presenciais", "B) Aulas presenciais + atividades digitais adaptativas", "C) Somente plataformas digitais", "D) Avaliações sem interação humana"], explanation: "Combina presencial e digital para otimizar aprendizagem.", topic: "IA / Futuro da Educação" },
+                { q: "A Educação Física escolar pode prevenir:", a: "B", options: ["A) Apenas sedentarismo", "B) Sedentarismo, obesidade, problemas posturais e promoção de hábitos saudáveis", "C) Doenças graves sem necessidade de acompanhamento", "D) Apenas lesões esportivas"], explanation: "EF contribui para saúde integral e hábitos de vida.", topic: "Educação Física" },
+                { q: "O conceito de competência digital inclui:", a: "B", options: ["A) Apenas usar redes sociais", "B) Saber usar tecnologia com segurança, criticidade e eficiência", "C) Somente programação", "D) Memorização de softwares"], explanation: "Competência digital envolve ética, avaliação crítica e uso funcional.", topic: "IA / Futuro da Educação" },
+                { q: "A avaliação contínua visa:", a: "B", options: ["A) Medir resultados finais apenas", "B) Monitorar progresso e ajustar estratégias de ensino", "C) Apenas dar notas", "D) Substituir acompanhamento pedagógico"], explanation: "Avaliação contínua ajuda aprendizagem e intervenção imediata.", topic: "Parte Geral" },
+                { q: "Na Educação Física, a capacidade cardiorrespiratória é importante porque:", a: "B", options: ["A) Apenas melhora performance esportiva", "B) Melhora saúde geral, resistência e qualidade de vida", "C) Substitui força muscular", "D) Serve só para competições"], explanation: "Benefícios vão além de esportes, impactando saúde integral.", topic: "Educação Física" },
+                { q: "O uso de plataformas digitais com IA deve respeitar:", a: "A", options: ["A) Privacidade e proteção de dados dos alunos", "B) Apenas metas de desempenho", "C) Substituição do professor", "D) Ensino unicamente teórico"], explanation: "Ética e proteção de dados são essenciais no contexto digital.", topic: "IA / Futuro da Educação" },
+                { q: "O ensino da história e cultura afro-brasileira visa:", a: "B", options: ["A) Apenas cumprir lei", "B) Promover identidade, valorização cultural e diversidade", "C) Focar em esportes afro-brasileiros", "D) Ignorar contexto histórico"], explanation: "Lei 10.639/2003 garante ensino de história e cultura afro-brasileira.", topic: "Parte Geral" },
+                { q: "O desenvolvimento da coordenação motora é essencial para:", a: "B", options: ["A) Memorização de fórmulas", "B) Habilidades físicas, cognitivas e sociais", "C) Apenas treino esportivo", "D) Exclusão de crianças menos habilidosas"], explanation: "Coordenação influencia desempenho motor, acadêmico e social.", topic: "Educação Física" },
+                { q: "O ensino de habilidades digitais deve incluir:", a: "B", options: ["A) Apenas digitação", "B) Segurança online, pesquisa crítica, colaboração e criação digital", "C) Memorizar softwares", "D) Apenas programação"], explanation: "Habilidades digitais vão além do uso básico, integrando pensamento crítico.", topic: "IA / Futuro da Educação" },
+                { q: "A Educação Física pode auxiliar no desenvolvimento de:", a: "B", options: ["A) Apenas força física", "B) Saúde, socialização, disciplina e hábitos saudáveis", "C) Somente coordenação motora fina", "D) Competição isolada"], explanation: "EF é multidimensional, atuando no físico e social.", topic: "Educação Física" },
+                { q: "A Inteligência Artificial na avaliação permite:", a: "B", options: ["A) Somente corrigir provas", "B) Detectar padrões de aprendizagem e sugerir intervenções", "C) Substituir totalmente o professor", "D) Aplicar apenas testes de matemática"], explanation: "IA facilita análise de desempenho individual e coletivo.", topic: "IA / Futuro da Educação" },
+                { q: "A aprendizagem personalizada com IA significa:", a: "B", options: ["A) Conteúdo idêntico para todos", "B) Ajuste de ritmo, atividades e feedback conforme necessidades individuais", "C) Substituir interação social", "D) Apenas ensino online"], explanation: "Personalização maximiza aprendizado de cada aluno.", topic: "IA / Futuro da Educação" },
+                { q: "O ensino de hábitos saudáveis deve incluir:", a: "B", options: ["A) Apenas exercícios físicos", "B) Alimentação, sono, higiene, prática esportiva e saúde mental", "C) Apenas avaliação de desempenho", "D) Apenas aulas teóricas"], explanation: "Educação integral considera múltiplos fatores do bem-estar.", topic: "Parte Geral" },
+                { q: "O conceito de educação digital ética envolve:", a: "B", options: ["A) Compartilhamento irrestrito de dados", "B) Uso seguro, responsável e consciente de tecnologia", "C) Substituir professores", "D) Focar só em ensino online"], explanation: "Ética digital protege alunos e orienta decisões pedagógicas.", topic: "IA / Futuro da Educação" },
+                { q: "A aprendizagem colaborativa com tecnologia permite:", a: "B", options: ["A) Apenas interação social sem conteúdo", "B) Trabalho em equipe, compartilhamento de conhecimento e solução de problemas", "C) Competição individual", "D) Apenas jogos virtuais sem propósito"], explanation: "Integra colaboração e aprendizado ativo com suporte digital.", topic: "IA / Futuro da Educação" },
+                { q: "O futuro da Educação Física escolar pode incluir:", a: "B", options: ["A) Exclusivamente esportes competitivos", "B) Integração de tecnologias, monitoramento de desempenho e personalização de atividades", "C) Apenas aulas teóricas", "D) Treino uniforme para todos"], explanation: "Tecnologia otimiza ensino, acompanha progresso e garante inclusão.", topic: "Educação Física" },
+                { q: "A gamificação inteligente na educação promove:", a: "B", options: ["A) Apenas competição entre alunos", "B) Engajamento, feedback contínuo e aprendizado personalizado", "C) Substituição de aulas presenciais", "D) Apenas recompensas digitais"], explanation: "Combina motivação lúdica com objetivos pedagógicos.", topic: "IA / Futuro da Educação" },
+                { q: "O uso de big data na educação permite:", a: "B", options: ["A) Aplicar provas mais fáceis", "B) Analisar grandes volumes de dados para otimizar ensino e políticas educacionais", "C) Substituir professores", "D) Apenas registrar presença"], explanation: "Informações permitem decisões pedagógicas fundamentadas.", topic: "IA / Futuro da Educação" },
+                { q: "O ensino híbrido com IA pode:", a: "B", options: ["A) Reduzir contato professor-aluno", "B) Combinar aprendizado online, presencial e adaptativo com dados de desempenho", "C) Ensinar somente conteúdos digitais", "D) Ignorar avaliação formativa"], explanation: "Combina múltiplos ambientes e personalização do aprendizado.", topic: "IA / Futuro da Educação" },
+                { q: "O conceito de cultura corporal de movimento inclui:", a: "B", options: ["A) Apenas esportes competitivos", "B) Jogos, lutas, danças, ginásticas e práticas corporais diversas", "C) Somente musculação", "D) Apenas treino físico formal"], explanation: "Educação Física deve contemplar diversidade de práticas corporais.", topic: "Educação Física" },
+                { q: "A Educação Física inclusiva se caracteriza por:", a: "A", options: ["A) Adaptar atividades para participação de todos", "B) Focar apenas em atletas habilidosos", "C) Treino padronizado", "D) Exclusão de alunos com deficiência"], explanation: "Inclusão garante acesso e aprendizado para todos.", topic: "Educação Física" },
+                { q: "A integração de IA e realidade virtual pode:", a: "B", options: ["A) Substituir professores completamente", "B) Criar experiências imersivas e personalizadas de aprendizagem", "C) Apenas entretenimento", "D) Apenas avaliação automática"], explanation: "Tecnologia imersiva amplia compreensão e engajamento.", topic: "IA / Futuro da Educação" },
+                { q: "A aprendizagem baseada em dados visa:", a: "B", options: ["A) Reduzir o conteúdo", "B) Tomar decisões pedagógicas fundamentadas em evidências", "C) Substituir professor", "D) Apenas registrar frequência"], explanation: "Dados auxiliam professores a planejar melhor ensino e intervenções.", topic: "IA / Futuro da Educação" },
+                { q: "A IA pode apoiar a formação continuada de professores ao:", a: "B", options: ["A) Substituí-los em sala", "B) Fornecer conteúdos personalizados, feedback e cursos adaptativos", "C) Avaliar apenas alunos", "D) Reduzir capacitação docente"], explanation: "Ferramentas digitais ampliam atualização docente de forma prática.", topic: "IA / Futuro da Educação" },
+                { q: "O uso ético de IA na educação brasileira depende de:", a: "B", options: ["A) Apenas investimento financeiro", "B) Privacidade, capacitação docente, infraestrutura e regulamentação", "C) Substituir professores", "D) Apenas políticas nacionais"], explanation: "Ética envolve infraestrutura, legislação e formação adequada.", topic: "IA / Futuro da Educação" },
+                { q: "A aprendizagem personalizada com IA permite:", a: "B", options: ["A) Conteúdo igual para todos", "B) Ajustes conforme ritmo, estilo de aprendizagem e necessidades do aluno", "C) Reduz interação social", "D) Ensino uniforme"], explanation: "Personalização maximiza aprendizagem individual.", topic: "IA / Futuro da Educação" },
+
+                // Newly added General Knowledge questions (50 questions)
+                { q: "O que a Lei de Diretrizes e Bases da Educação Nacional (LDB) nº 9.394/96 estabelece como o principal objetivo da educação brasileira?", a: "B", options: ["A. Preparar para o mercado de trabalho.", "B. Promover o pleno desenvolvimento do educando, seu preparo para o exercício da cidadania e sua qualificação para o trabalho.", "C. Assegurar o acesso e a permanência de todos os alunos na escola.", "D. Formar cidadãos críticos e aptos a participar da vida política do país."], explanation: "A LDB, no seu Art. 2º, define explicitamente esses três pilares como a finalidade da educação nacional.", topic: "Parte Geral" },
+                { q: "O Plano Nacional de Educação (PNE) estabelece metas e estratégias para a educação no Brasil com vigência de quantos anos?", a: "C", options: ["A. 5 anos.", "B. 8 anos.", "C. 10 anos.", "D. 15 anos."], explanation: "O PNE, estabelecido pela Lei nº 13.005/2014, tem vigência de dez anos, com metas e estratégias para a educação brasileira.", topic: "Parte Geral" },
+                { q: "Segundo a LDB, qual é o primeiro nível da educação básica?", a: "C", options: ["A. Ensino Fundamental", "B. Ensino Médio", "C. Educação Infantil", "D. Educação de Jovens e Adultos (EJA)"], explanation: "A Educação Infantil, que compreende creches e pré-escolas, é a primeira etapa da educação básica, conforme o Art. 21 da LDB.", topic: "Parte Geral" },
+                { q: "Qual é o objetivo principal da Base Nacional Comum Curricular (BNCC)?", a: "C", options: ["A. Aumentar o salário dos professores.", "B. Unificar o material didático em todas as escolas do país.", "C. Definir os direitos de aprendizagem essenciais para todos os estudantes brasileiros.", "D. Padronizar o método de ensino em todas as disciplinas."], explanation: "A BNCC define o conjunto de aprendizagens essenciais que todos os alunos, da educação infantil ao ensino médio, devem desenvolver, garantindo a equidade no ensino.", topic: "Parte Geral" },
+                { q: "Qual é a principal função do Fundo de Manutenção e Desenvolvimento da Educação Básica (Fundeb)?", a: "D", options: ["A. Financiar a construção de novas escolas.", "B. Aumentar a remuneração dos diretores de escola.", "C. Distribuir recursos para o financiamento da educação em todos os níveis.", "D. Distribuir e suplementar os recursos para o financiamento da educação básica."], explanation: "O Fundeb é o principal mecanismo de financiamento da educação básica, distribuindo recursos de forma a reduzir as desigualdades entre as redes de ensino.", topic: "Parte Geral" },
+                { q: "A educação inclusiva, conforme a legislação brasileira, tem como princípio fundamental:", a: "C", options: ["A. Criar escolas especializadas para cada tipo de deficiência.", "B. Manter alunos com deficiência em salas de recursos, separados dos demais.", "C. Garantir que todos os alunos, independentemente de suas condições, frequentem a mesma sala de aula regular.", "D. Oferecer apenas o ensino em Braille para alunos com deficiência visual."], explanation: "O conceito de educação inclusiva preconiza a matrícula e a participação de todos os estudantes em escolas e salas de aula regulares, adaptando o ensino às suas necessidades.", topic: "Parte Geral" },
+                { q: "A gestão democrática do ensino público, um dos princípios da LDB, se manifesta por meio de:", a: "B", options: ["A. Decisões tomadas exclusivamente pela diretoria da escola.", "B. Conselhos escolares com participação de pais, alunos, professores e funcionários.", "C. Apenas reuniões de pais e mestres no final do ano.", "D. Apenas a eleição do diretor da escola."], explanation: "A gestão democrática se baseia na participação coletiva da comunidade escolar, especialmente através do conselho escolar, na tomada de decisões pedagógicas e administrativas.", topic: "Parte Geral" },
+                { q: "Qual é o principal papel da avaliação da aprendizagem na perspectiva formativa?", a: "B", options: ["A. Apenas atribuir uma nota ao aluno para aprovação ou reprovação.", "B. Oferecer feedback contínuo para o aluno e o professor, ajustando o processo de ensino e aprendizagem.", "C. Compare o desempenho dos alunos entre si.", "D. Medir apenas o conhecimento de conteúdo memorizado."], explanation: "A avaliação formativa foca no processo, não apenas no resultado. Ela serve como um guia para o professor e o aluno, identificando pontos fortes e fracos para melhorar a aprendizagem.", topic: "Parte Geral" },
+                { q: "Para Paulo Freire, o principal objetivo da educação é:", a: "C", options: ["A. A transmissão de conhecimentos prontos.", "B. A “bancária” de informações, onde o professor deposita conhecimento no aluno.", "C. A “problematizadora”, que estimula a reflexão crítica e a transformação da realidade.", "D. A memorização de conteúdos para o vestibular."], explanation: "Freire defendia uma educação que não se limitasse à transmissão de conteúdo, mas que levasse o aluno a questionar sua realidade e a atuar como agente de transformação social.", topic: "Parte Geral" },
+                { q: "De acordo com a teoria de Vygotsky, qual é a importância da Zona de Desenvolvimento Proximal (ZDP)?", a: "C", options: ["A. É a área do cérebro onde as memórias são armazenadas.", "B. É o que o aluno já sabe fazer sozinho, sem ajuda.", "C. É a distância entre o que o aluno já sabe fazer e o que ele pode aprender com a ajuda de um mediador (professor ou colega).", "D. É a capacidade de memorização do aluno."], explanation: "A ZDP é o conceito central de Vygotsky, que ressalta a importância da interação social e da mediação para que o aluno avance em seu desenvolvimento.", topic: "Parte Geral" },
+                { q: "A interdisciplinaridade no currículo escolar é a prática de:", a: "C", options: ["A. Ensinar cada disciplina de forma isolada, sem conexão.", "B. Criar um currículo com o dobro de disciplinas.", "C. Conectar e integrar diferentes disciplinas para abordar um tema ou problema.", "D. Apenas usar tecnologia em todas as disciplinas."], explanation: "A interdisciplinaridade busca uma abordagem mais holística do conhecimento, quebrando as barreiras entre as disciplinas para que os alunos vejam as conexões entre elas.", topic: "Parte Geral" },
+                { q: "Qual é a principal característica da pedagogia de projetos?", a: "C", options: ["A. Apenas a leitura de livros sobre um tema.", "B. O professor elabora o projeto sozinho e os alunos executam.", "C. Os alunos são protagonistas na investigação de um tema de seu interesse, com o professor atuando como orientador.", "D. Os projetos são sempre concluídos em um único dia."], explanation: "A pedagogia de projetos coloca o aluno no centro do processo de aprendizagem, incentivando a pesquisa, a colaboração e a autonomia para resolver problemas reais.", topic: "Parte Geral" },
+                { q: "O que é a avaliação diagnóstica na educação?", a: "C", options: ["A. Uma avaliação que serve apenas para reprovar o aluno no final do ano.", "B. Uma avaliação para determinar a nota final do aluno.", "C. Uma avaliação inicial para identificar o conhecimento prévio dos alunos sobre um determinado assunto.", "D. Um tipo de avaliação que ocorre apenas no meio do ano letivo."], explanation: "A avaliação diagnóstica é realizada antes do início de uma unidade de ensino para que o professor possa planejar suas aulas com base nas necessidades e no conhecimento dos alunos.", topic: "Parte Geral" },
+                { q: "A Lei Brasileira de Inclusão (LBI), também conhecida como Estatuto da Pessoa com Deficiência, garante:", a: "C", options: ["A. O direito de pessoas com deficiência estudarem em escolas separadas.", "B. O direito de pessoas com deficiência a um ensino superior gratuito.", "C. O acesso à educação em todos os níveis e modalidades, em ambiente inclusivo.", "D. Apenas o direito à matrícula em escolas públicas."], explanation: "A LBI reforça o direito à educação inclusiva, assegurando que pessoas com deficiência tenham acesso a todos os níveis de ensino em um ambiente que promova sua plena participação.", topic: "Parte Geral" },
+                { q: "O que a Gestão Escolar Participativa busca alcançar?", a: "C", options: ["A. A centralização do poder na figura do diretor.", "B. Apenas a participação de pais em reuniões esporádicas.", "C. O envolvimento de toda a comunidade escolar na tomada de decisões.", "D. A autonomia total dos professores em sala de aula."], explanation: "A gestão participativa é um modelo em que toda a comunidade escolar – alunos, pais, professores e funcionários – colabora na gestão pedagógica, administrativa e financeira da escola.", topic: "Parte Geral" },
+                { q: "A abordagem de ensino conhecida como Pedagogia Histórico-Crítica busca:", a: "C", options: ["A. A reprodução do conhecimento tradicional.", "B. Apenas a memorização de fatos históricos.", "C. Compreender a realidade social dos alunos para que o conteúdo escolar seja um instrumento de transformação.", "D. Ensinar apenas a história da educação."], explanation: "A Pedagogia Histórico-Crítica, de autores como Dermeval Saviani, defende que a educação deve partir da realidade social do aluno e usar o conhecimento científico para intervir nessa realidade.", topic: "Parte Geral" },
+                { q: "Qual das seguintes afirmações sobre o bullying na escola está correta?", a: "B", options: ["A. Bullying é uma briga esporádica entre alunos.", "B. O bullying é uma forma de violência física ou psicológica, repetitiva e intencional.", "C. O bullying só pode ser praticado por alunos maiores.", "D. É uma brincadeira normal entre amigos."], explanation: "O bullying se diferencia de conflitos pontuais por ser uma violência sistemática, com repetição, assimetria de poder e intenção de causar dano.", topic: "Parte Geral" },
+                { q: "O que significa o conceito de currículo oculto na educação?", a: "D", options: ["A. Um currículo que não está escrito nos documentos oficiais da escola.", "B. O currículo de uma disciplina específica.", "C. Conteúdos ensinados em segredo para os alunos.", "D. As aprendizagens e valores que são transmitidos de forma não intencional e implícita na escola."], explanation: "O currículo oculto se refere a todas as mensagens, normas e valores que os alunos aprendem no ambiente escolar, mesmo que não estejam explicitamente no plano de ensino.", topic: "Parte Geral" },
+                { q: "Qual é a principal contribuição da teoria de Piaget para a educação?", a: "B", options: ["A. A ênfase na interação social para o desenvolvimento.", "B. A importância dos estágios do desenvolvimento cognitivo na aprendizagem.", "C. O foco na memorização de conteúdo.", "D. A defesa da educação como um ato de liberdade."], explanation: "Piaget demonstrou que as crianças passam por estágios de desenvolvimento cognitivo distintos, o que influencia como elas aprendem e constroem o conhecimento.", topic: "Parte Geral" },
+                { q: "O que a educação de jovens e adultos (EJA) busca?", a: "C", options: ["A. Apenas a alfabetização de adultos.", "B. Oferecer um currículo diferente e menos exigente que o ensino regular.", "C. Oferecer oportunidades de educação para quem não concluiu a educação básica na idade regular.", "D. Preparar jovens para o mercado de trabalho."], explanation: "A EJA é uma modalidade de ensino que visa dar continuidade aos estudos para jovens e adultos que não tiveram acesso à educação básica na idade apropriada.", topic: "Parte Geral" },
+                { q: "A formação continuada de professores é essencial para:", a: "C", options: ["A. Garantir que os professores só ensinem conteúdos tradicionais.", "B. Apenas aumentar o salário dos professores.", "C. Manter os professores atualizados com novas metodologias, tecnologias e pesquisas educacionais.", "D. Substituir a formação inicial de graduação."], explanation: "A formação continuada é fundamental para o desenvolvimento profissional, permitindo que os educadores aprimorem suas práticas e se adaptem às novas demandas da sociedade.", topic: "Parte Geral" },
+                { q: "O que a avaliação institucional de uma escola envolve?", a: "C", options: ["A. Apenas o desempenho dos alunos nas provas.", "B. A avaliação de cada professor individualmente.", "C. O processo de autoavaliação da escola como um todo, considerando sua gestão, ensino e relações com a comunidade.", "D. Uma avaliação externa feita por uma comissão do MEC."], explanation: "A avaliação institucional é um processo interno e participativo que visa aprimorar a qualidade da escola, analisando todos os seus aspectos.", topic: "Parte Geral" },
+                { q: "O que é um Plano de Desenvolvimento da Educação (PDE)?", a: "B", options: ["A. Um plano individual de carreira para cada professor.", "B. Um plano do governo federal para melhorar a qualidade da educação básica.", "C. Um plano de aula detalhado para cada disciplina.", "D. Um plano de estudos para alunos com dificuldades."], explanation: "O PDE foi um conjunto de ações do MEC para melhorar a qualidade da educação, com metas para serem alcançadas em cada município.", topic: "Parte Geral" },
+                { q: "O artigo 205 da Constituição Federal de 1988 define que a educação é um direito de todos e um dever do Estado e da família. O que ele também estabelece?", a: "B", options: ["A. Que a educação é um direito apenas de crianças e adolescentes.", "B. Que a educação deve ser para o pleno desenvolvimento da pessoa, seu preparo para o exercício da cidadania e sua qualificação para o trabalho.", "C. Que a educação é responsabilidade apenas da escola.", "D. Que o ensino privado é mais importante que o público."], explanation: "Este artigo é um dos mais importantes da educação brasileira, e sua redação é quase idêntica ao objetivo da LDB, reforçando os pilares do ensino.", topic: "Parte Geral" },
+                { q: "A pedagogia freinetiana valoriza a:", a: "C", options: ["A. Disciplina rígida e a memorização.", "B. Apenas o uso de livros didáticos.", "C. O trabalho livre do aluno, a auto-organização e a cooperação.", "D. A competição entre os alunos."], explanation: "Célestin Freinet defendia uma educação baseada na cooperação, na experimentação e na livre expressão, onde a criança é o centro da aprendizagem.", topic: "Parte Geral" },
+                { q: "O que o ensino híbrido representa?", a: "C", options: ["A. O uso de aulas apenas online.", "B. O uso de aulas apenas presenciais.", "C. A combinação de atividades presenciais com atividades mediadas por tecnologia digital.", "D. O ensino de duas disciplinas diferentes ao mesmo tempo."], explanation: "O ensino híbrido integra o melhor dos dois mundos: a interação da sala de aula presencial com a flexibilidade e o acesso a recursos do ambiente digital.", topic: "Parte Geral" },
+                { q: "A Educação a Distância (EAD) no Brasil é regulamentada por qual órgão?", a: "C", options: ["A. Apenas pelas secretarias estaduais de educação.", "B. Apenas pela escola que oferece o curso.", "C. Principalmente pelo Ministério da Educação (MEC).", "D. Apenas pelas universidades federais."], explanation: "O MEC é o órgão responsável por regulamentar e autorizar a oferta de cursos na modalidade de Educação a Distância em todo o país.", topic: "Parte Geral" },
+                { q: "Qual é a diferença entre currículo prescrito e currículo em ação?", a: "B", options: ["A. O currículo prescrito é o ideal, e o currículo em ação é o que os alunos aprendem.", "B. O currículo prescrito é o conjunto de documentos oficiais, e o currículo em ação é o que realmente acontece na sala de aula.", "C. Não há diferença entre eles.", "D. O currículo em ação é um currículo para aulas de teatro."], explanation: "O currículo prescrito é a teoria, o que está nos planos de ensino e na BNCC. O currículo em ação é a prática, o que de fato é ensinado e aprendido.", topic: "Parte Geral" },
+                { q: "O conceito de pedagogia da autonomia, de Paulo Freire, sugere que:", a: "C", options: ["A. A educação deve focar na obediência dos alunos.", "B. O professor deve ser o único detentor do conhecimento.", "C. É preciso ensinar o aluno a pensar por si mesmo, a ser curioso e a se responsabilizar por sua própria aprendizagem.", "D. O aluno deve aprender sem a ajuda de ninguém."], explanation: "A pedagogia da autonomia é um dos pilares do pensamento freiriano, que defende o desenvolvimento do senso crítico e da independência intelectual nos alunos.", topic: "Parte Geral" },
+                { q: "A violência escolar pode ser combatida, de forma eficaz, através de:", a: "B", options: ["A. Apenas a punição severa dos alunos agressores.", "B. Programas que ensinem a empatia, o diálogo e a resolução pacífica de conflitos.", "C. Proibição total do uso de celulares na escola.", "D. Isolamento dos alunos com comportamento agressivo."], explanation: "O combate à violência escolar é um processo complexo que envolve a construção de um ambiente seguro e acolhedor, com foco na prevenção e no desenvolvimento de habilidades socioemocionais.", topic: "Parte Geral" },
+                { q: "Qual é a principal função da coordenação pedagógica em uma escola?", a: "C", options: ["A. Apenas substituir o professor em caso de ausência.", "B. Gerenciar as finanças e a infraestrutura da escola.", "C. Orientar e acompanhar o trabalho dos professores, promovendo a articulação do projeto pedagógico.", "D. Apenas resolver conflitos entre alunos."], explanation: "O coordenador pedagógico é o principal responsável por garantir a qualidade do projeto pedagógico da escola, atuando como um formador e mediador para os professores.", topic: "Parte Geral" },
+                { q: "A educação integral, de acordo com a LDB, é:", a: "C", options: ["A. O ensino de todas as disciplinas do currículo.", "B. O ensino em período integral, de manhã e à tarde.", "C. O desenvolvimento de todas as dimensões do ser humano: física, intelectual, social e afetiva.", "D. A oferta de aulas de reforço para todos os alunos."], explanation: "O conceito de educação integral vai além do tempo na escola. Ele busca o desenvolvimento completo do aluno, em todas as suas potencialidades.", topic: "Parte Geral" },
+                { q: "O que o Projeto Político-Pedagógico (PPP) de uma escola representa?", a: "C", options: ["A. Apenas o conjunto de regras de conduta para os alunos.", "B. O cronograma de eventos da escola ao longo do ano.", "C. A identidade da escola, seu planejamento e o plano de ação para atingir seus objetivos pedagógicos.", "D. O plano de carreira para os professores."], explanation: "O PPP é o documento mais importante da escola, pois ele reflete sua filosofia, seus valores e a forma como ela pretende atingir seus objetivos de ensino.", topic: "Parte Geral" },
+                { q: "Qual das seguintes ações demonstra o uso da pedagogia da presença em sala de aula?", a: "C", options: ["A. O professor apenas dita o conteúdo aos alunos.", "B. O professor se mantém distante dos alunos para não interferir.", "C. O professor se mostra disponível, estabelecendo uma relação de escuta e empatia com os alunos.", "D. O professor proíbe perguntas e discussões em aula."], explanation: "A pedagogia da presença, um conceito de Paulo Freire, enfatiza a importância da relação humana e do afeto no processo de ensino e aprendizagem.", topic: "Parte Geral" },
+                { q: "O Estatuto da Criança e do Adolescente (ECA) tem como princípio fundamental:", a: "B", options: ["A. Apenas punir os adolescentes que cometerem crimes.", "B. Tratar crianças e adolescentes como seres em desenvolvimento e sujeitos de direitos.", "C. Apenas o direito à saúde e à moradia.", "D. Que os pais são os únicos responsáveis pela educação dos filhos."], explanation: "O ECA, em sua essência, estabelece a proteção integral de crianças e adolescentes, reconhecendo-os como cidadãos com direitos e deveres.", topic: "Parte Geral" },
+                { q: "A teoria das Inteligências Múltiplas, de Howard Gardner, sugere que:", a: "C", options: ["A. As pessoas têm apenas uma forma de ser inteligentes (a inteligência lógica).", "B. A inteligência é fixa e não pode ser desenvolvida.", "C. Existem diferentes tipos de inteligência, como a musical, a corporal, a intrapessoal e a linguística.", "D. A inteligência é apenas um reflexo da capacidade de memorizar."], explanation: "Gardner revolucionou o conceito de inteligência, defendendo que ela se manifesta de diversas formas e que a escola deve reconhecer e valorizar essa pluralidade.", topic: "Parte Geral" },
+                { q: "O que a mediação pedagógica envolve?", a: "B", options: ["A. O professor apenas transmite conhecimento de forma passiva.", "B. O professor atua como um intermediário entre o aluno e o conhecimento, auxiliando-o na construção do saber.", "C. O professor apenas resolve conflitos entre alunos.", "D. Apenas o uso de tecnologia em sala de aula."], explanation: "A mediação pedagógica, conceito fundamental na teoria de Vygotsky, é o ato do professor de guiar o aluno para que ele construa seu próprio conhecimento.", topic: "Parte Geral" },
+                { q: "Qual das seguintes práticas contribui para a democratização do acesso à escola?", a: "C", options: ["A. Exigir uma alta taxa de matrícula para todos os alunos.", "B. Reduzir o número de vagas em escolas públicas.", "C. Aumentar o acesso a creches e pré-escolas, especialmente em áreas de baixa renda.", "D. Apenas focar no ensino médio."], explanation: "A democratização da educação começa na base, com o acesso à educação infantil, que é fundamental para o desenvolvimento e a redução das desigualdades.", topic: "Parte Geral" },
+                { q: "O que o conceito de currículo em espiral sugere?", a: "B", options: ["A. Um currículo que é repetido a cada ano, sem mudanças.", "B. Um currículo em que os mesmos temas são retomados em diferentes etapas do ensino, com maior profundidade e complexidade.", "C. Um currículo que não tem uma ordem lógica.", "D. Um currículo para aulas de dança."], explanation: "O currículo em espiral é um modelo de aprendizagem que permite ao aluno revisitar conceitos já vistos, mas em níveis de complexidade mais elevados, reforçando o conhecimento.", topic: "Parte Geral" },
+                { q: "A ética na educação é fundamental para:", a: "C", options: ["A. Apenas garantir que os alunos não trapaceiem nas provas.", "B. Apenas punir alunos com mau comportamento.", "C. Promover o respeito, a justiça, a solidariedade e a responsabilidade entre toda a comunidade escolar.", "D. Focar apenas no ensino de regras e leis."], explanation: "A ética na educação vai além das regras, ela é um princípio que guia as relações e as ações na escola, promovendo um ambiente de respeito e valores.", topic: "Parte Geral" },
+                { q: "Qual é a principal característica da abordagem sociointeracionista?", a: "B", options: ["A. O aluno aprende sozinho, sem a necessidade de interação.", "B. A aprendizagem é construída por meio da interação social e da colaboração.", "C. O professor é o único transmissor do conhecimento.", "D. O ambiente de aprendizagem não afeta o desenvolvimento do aluno."], explanation: "Inspirada em Vygotsky, essa abordagem defende que o conhecimento é construído na relação entre o sujeito e o mundo, por meio da interação social.", topic: "Parte Geral" },
+                { q: "O que o plano de aula representa para o professor?", a: "B", options: ["A. Um documento obrigatório para ser arquivado.", "B. Um guia detalhado que organiza o conteúdo, as metodologias e os recursos para uma aula específica.", "C. Um documento para ser entregue aos pais dos alunos.", "D. Uma lista de presença."], explanation: "O plano de aula é uma ferramenta essencial de planejamento que garante que a aula tenha um objetivo claro, um caminho lógico e atividades bem definidas.", topic: "Parte Geral" },
+                { q: "Em relação à inclusão de alunos com Transtorno do Espectro Autista (TEA), qual é a melhor prática?", a: "C", options: ["A. Fazer com que o aluno se adapte ao método tradicional de ensino.", "B. Ignorar as especificidades do aluno para não 'dar tratamento especial'.", "C. Oferecer um ambiente estruturado, com rotinas previsíveis e apoio pedagógico individualizado, se necessário.", "D. Colocá-lo em uma sala de aula separada para que ele não se sinta sobrecarregado."], explanation: "A inclusão de alunos com TEA exige um ambiente acolhedor, com adaptações que considerem as suas necessidades sensoriais e de rotina, além de um planejamento individualizado.", topic: "Parte Geral" },
+                { q: "O que a avaliação em larga escala, como o Saeb (Sistema de Avaliação da Educação Básica), busca?", a: "C", options: ["A. Avaliar o desempenho individual de cada aluno para aprovação.", "B. Avaliar a qualidade de escolas particulares.", "C. Oferecer um diagnóstico da qualidade da educação brasileira, fornecendo dados para políticas públicas.", "D. Criar rankings de escolas."], explanation: "Avaliações em larga escala não são para aprovar ou reprovar alunos, mas para fornecer um panorama geral da educação, ajudando o governo a identificar falhas e a criar políticas eficazes.", topic: "Parte Geral" },
+                { q: "O professor-pesquisador é aquele que:", a: "C", options: ["A. Apenas faz pesquisas acadêmicas fora da escola.", "B. Desenvolve pesquisas apenas para publicar em revistas.", "C. Reflete criticamente sobre sua prática em sala de aula e a investiga para aprimorá-la.", "D. Pesquisa apenas os conteúdos que vai ensinar."], explanation: "O professor-pesquisador não se limita a dar aula, ele questiona, analisa e investiga sua própria prática pedagógica para entender melhor os desafios e as oportunidades do seu trabalho.", topic: "Parte Geral" },
+                { q: "Qual é o papel da família na educação escolar, segundo a LDB?", a: "C", options: ["A. Apenas pagar a mensalidade da escola.", "B. Apenas acompanhar o dever de casa dos filhos.", "C. Participar ativamente do processo de ensino-aprendizagem, colaborando com a escola.", "D. O papel da família se encerra na matrícula."], explanation: "A LDB estabelece que a família é parte fundamental no processo educativo, e a colaboração entre escola e família é um dos pilares para o sucesso do aluno.", topic: "Parte Geral" },
+                { q: "A diversidade cultural na escola deve ser:", a: "C", options: ["A. Ignorada para que todos os alunos sejam tratados da mesma forma.", "B. Vista como um problema a ser corrigido.", "C. Valorizada e utilizada como um recurso pedagógico para enriquecer a aprendizagem.", "D. Apenas um tema para ser discutido em datas comemorativas."], explanation: "A diversidade cultural é uma riqueza para o ambiente escolar. O professor deve valorizá-la e utilizá-la para que os alunos aprendam sobre diferentes culturas e desenvolvam o respeito mútuo.", topic: "Parte Geral" },
+                { q: "O protagonismo juvenil na escola pode ser incentivado por meio de:", a: "B", options: ["A. Atividades em que o aluno apenas escuta o professor.", "B. Aulas em que o aluno tem voz e participa da tomada de decisões, como em grêmios estudantis e projetos.", "C. Proibição de todas as atividades extracurriculares.", "D. Provas com conteúdo apenas teórico."], explanation: "O protagonismo juvenil é um conceito que busca envolver os jovens nas decisões da escola, dando a eles um papel ativo na construção do ambiente educacional.", topic: "Parte Geral" },
+                { q: "O que a gestão democrática do ensino público exige?", a: "B", options: ["A. Que o diretor seja eleito pelo voto popular.", "B. O envolvimento de todos os segmentos da comunidade escolar na gestão da escola.", "C. A exclusão da comunidade externa nas decisões da escola.", "D. A centralização do poder no conselho escolar."], explanation: "A gestão democrática é baseada no princípio da participação, com a comunidade escolar sendo parte ativa na gestão pedagógica, administrativa e financeira.", topic: "Parte Geral" },
+                { q: "A pedagogia da autonomia, de Paulo Freire, sugere que o professor deve:", a: "B", options: ["A. Ditar o conteúdo e exigir a memorização.", "B. Ser um mediador, um facilitador que estimula a curiosidade e o pensamento crítico do aluno.", "C. Ignorar o conhecimento prévio dos alunos.", "D. Apenas avaliar por meio de provas escritas."], explanation: "A pedagogia da autonomia é um dos pilares do pensamento freiriano, que defende o desenvolvimento do senso crítico e da independência intelectual nos alunos.", topic: "Parte Geral" }
+            ];
+            
+            const totalQuestions = questions.length;
+
+            startButton.addEventListener('click', startGame);
+            nextQuestionButton.addEventListener('click', loadNextQuestion);
+            restartButton.addEventListener('click', startGame);
+            backButton.addEventListener('click', () => window.history.back());
+            pdfButton.addEventListener('click', generatePdf);
+
+            function startGame() {
+                currentQuestionIndex = 0;
+                score = 0;
+                introScreen.classList.add('hidden');
+                endScreen.classList.add('hidden');
+                gameScreen.classList.remove('hidden');
+                loadQuestion();
+            }
+
+            function loadNextQuestion() {
+                currentQuestionIndex++;
+                if (currentQuestionIndex < totalQuestions) {
+                    loadQuestion();
+                } else {
+                    showEndScreen();
+                }
+            }
+
+            function loadQuestion() {
+                const question = questions[currentQuestionIndex];
+                updateHeader(question);
+                
+                questionArea.innerHTML = `
+                    <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-6 text-center">${question.q}</h2>
+                    <div id="options-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        ${question.options.map(option => `
+                            <button class="btn-option w-full bg-white text-gray-700 font-semibold py-4 px-6 rounded-lg border-2 border-gray-300 hover:border-indigo-500 hover:text-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2" data-answer="${option.charAt(0)}">
+                                ${option}
+                            </button>
+                        `).join('')}
+                    </div>
+                `;
+                
+                document.querySelectorAll('.btn-option').forEach(button => {
+                    button.addEventListener('click', selectAnswer);
+                });
+
+                feedbackArea.classList.add('hidden');
+            }
+
+            function updateHeader(question) {
+                scoreDisplay.textContent = `Score: ${score}`;
+                questionCountDisplay.textContent = `Questão ${currentQuestionIndex + 1} / ${totalQuestions}`;
+                
+                const progressPercentage = ((currentQuestionIndex + 1) / totalQuestions) * 100;
+                progressBarFill.style.width = `${progressPercentage}%`;
+                
+                let topicClass = '';
+                let topicBgClass = '';
+                if (question.topic === "Parte Geral") {
+                    topicClass = 'topic-text-geral';
+                    topicBgClass = 'topic-bg-geral';
+                    progressBarFill.style.backgroundColor = '#3b82f6'; // Blue
+                } else if (question.topic === "Educação Física") {
+                    topicClass = 'topic-text-edfisica';
+                    topicBgClass = 'topic-bg-edfisica';
+                    progressBarFill.style.backgroundColor = '#10b981'; // Green
+                } else if (question.topic === "IA / Futuro da Educação") {
+                    topicClass = 'topic-text-ia';
+                    topicBgClass = 'topic-bg-ia';
+                    progressBarFill.style.backgroundColor = '#f59e0b'; // Amber
+                }
+                
+                topicTag.textContent = question.topic;
+                topicTag.className = `text-sm font-semibold rounded-full px-3 py-1 mt-4 inline-block ${topicBgClass}`;
+            }
+
+            function selectAnswer(e) {
+                const selectedButton = e.target;
+                const selectedAnswer = selectedButton.dataset.answer;
+                const question = questions[currentQuestionIndex];
+                const isCorrect = selectedAnswer === question.a;
+
+                document.querySelectorAll('.btn-option').forEach(button => {
+                    button.disabled = true;
+                    if (button.dataset.answer === question.a) {
+                        button.classList.add('bg-green-100', 'border-green-500', 'text-green-800');
+                    }
+                    if (!isCorrect && button === selectedButton) {
+                        button.classList.add('bg-red-100', 'border-red-500', 'text-red-800');
+                    }
+                });
+
+                if (isCorrect) {
+                    score++;
+                    feedbackTitle.textContent = "Correto! 🎉";
+                    feedbackTitle.style.color = '#10b981'; // Green
+                } else {
+                    feedbackTitle.textContent = "Incorreto! 😥";
+                    feedbackTitle.style.color = '#ef4444'; // Red
+                }
+
+                feedbackExplanation.textContent = question.explanation;
+                feedbackArea.classList.remove('hidden');
+                updateHeader(question);
+            }
+
+            function showEndScreen() {
+                gameScreen.classList.add('hidden');
+                endScreen.classList.remove('hidden');
+                finalScoreDisplay.textContent = `Sua pontuação final: ${score} de ${totalQuestions}`;
+                if (score >= passingScore) {
+                    finalMessageDisplay.textContent = "Excelente trabalho! Você passou na prova do mestre Dudu!";
+                } else {
+                    finalMessageDisplay.textContent = "Não foi desta vez. Continue estudando e tente novamente!";
+                }
+            }
+            
+            async function generatePdf() {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+                
+                introScreen.classList.add('hidden');
+                gameScreen.classList.add('hidden');
+                endScreen.classList.add('hidden');
+                loadingPdf.classList.remove('hidden');
+
+                await new Promise(resolve => setTimeout(resolve, 100));
+
+                let y = 15;
+                const pageHeight = doc.internal.pageSize.height;
+                const margin = 10;
+                
+                doc.setFontSize(18);
+                doc.text("ENEM dos Professores - Todas as Questões", 105, y, { align: 'center' });
+                y += 10;
+
+                questions.forEach((q, index) => {
+                    if (y + 40 > pageHeight - margin) {
+                        doc.addPage();
+                        y = margin;
+                    }
+                    
+                    doc.setFontSize(12);
+                    doc.setFont(undefined, 'bold');
+                    const questionText = doc.splitTextToSize(`${index + 1}. ${q.q}`, 180);
+                    doc.text(questionText, margin, y);
+                    y += (questionText.length * 5) + 5;
+
+                    doc.setFont(undefined, 'normal');
+                    q.options.forEach(opt => {
+                        const optionText = doc.splitTextToSize(opt, 170);
+                        doc.text(optionText, margin + 10, y);
+                        y += (optionText.length * 5);
+                    });
+                    
+                    y += 5;
+                    doc.setFont(undefined, 'bold');
+                    doc.text(`Resposta Correta: ${q.a}`, margin, y);
+                    y += 5;
+                    
+                    doc.setFont(undefined, 'normal');
+                    const explanationText = doc.splitTextToSize(`Explicação: ${q.explanation}`, 180);
+                    doc.text(explanationText, margin, y);
+                    y += (explanationText.length * 5) + 10;
+                    
+                });
+
+                doc.save('questoes_enem_professores.pdf');
+                
+                loadingPdf.classList.add('hidden');
+                if(currentQuestionIndex < totalQuestions) {
+                   gameScreen.classList.remove('hidden');
+                } else {
+                   endScreen.classList.remove('hidden');
+                }
+            }
+        });
+    </script>
+</body>
+</html>
